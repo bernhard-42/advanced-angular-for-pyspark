@@ -4,11 +4,11 @@
 
 ZeppelinSession extends the Angular Backend API for Python with the capability to start javascript functions and pass objects to them from Python:
 
-- [Advanced Angular for Pyspark.md](Advanced Angular for Pyspark.md)
+- Zeppelin notebook: [Advanced Angular for Pyspark.json](notebooks/Advanced Angular for Pyspark.json) (Readable version of notebook: [Advanced Angular for Pyspark.md](notebooks/Advanced Angular for Pyspark.md))
 
-A quick intro how to use the ZeppelinSession for visualisations with VegaLite ([https://vega.github.io/vega-lite/](https://vega.github.io/vega-lite/))
+A quick intro how to use the ZeppelinSession for visualisations with Vega-Lite ([https://vega.github.io/vega-lite/](https://vega.github.io/vega-lite/))
 
-- Vega-Lite: [VegaLite - The python way.md](VegaLite - The python way.md)
+- Zeppelin notebook: [VegaLite - The python way.json](notebooks/VegaLite - The python way.json) (Readable version of notebook: [VegaLite - The python way.md](notebooks/VegaLite - The python way.md))
 
 
 ## License
