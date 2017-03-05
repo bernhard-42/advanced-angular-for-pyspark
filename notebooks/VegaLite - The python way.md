@@ -27,7 +27,7 @@ print("Spark:  " + sc.version)
 _Result:_
 
 ```
-Python: 3.5.2 |Anaconda 4.2.0 (x86_64)| (default, Jul  2 2016, 17:52:12)  - [GCC 4.2.1 Compatible Apple LLVM 4.2 (clang-425.0.28)]
+Python: 3.5.2 |Anaconda 4.3.0 (x86_64)| (default, Jul  2 2016, 17:52:12)  - [GCC 4.2.1 Compatible Apple LLVM 4.2 (clang-425.0.28)]
 Spark:  2.1.0
 
 ```
@@ -82,20 +82,44 @@ class VegaLite:
               mode: "vega-lite",
               spec: object.vlSpec
             }
-            console.log()
+            console.log(object)
             setTimeout(function(){ 
-                vg.embed("#" + object.plotId, embedSpec, function(error, result) {
+                var divId = "__vgplot_" + object.plotId + "__";
+                var titleDivId = "__vgplot_" + object.plotId + "_title__";
+                
+                if (object.height > 0) {
+                    document.getElementById(divId).setAttribute("style","height:" + object.height + "px");
+                }
+                if (object.title != "") {
+                    console.log("==>", object.title)
+                    console.log(document.getElementById(titleDivId))
+                    document.getElementById(titleDivId).innerHTML = "<h3>" + object.title + "</h3>";
+                }
+                vg.embed("#" + divId, embedSpec, function(error, result) {
                     console.log("Plot " + object.plotId + " finished")
                 });
-            }, 200);
+            }, object.delay);
         }
         """
         self.session.registerFunction("vgplot", jsFunc)
         
-    def plot(self, plotId, vlSpec):
+    def plot(self, plotId, vlSpec, title="", delay=200, height=None):
+        self.prepare(plotId)
+        self.update(plotId, vlSpec, title, delay, height)
+
+    def prepare(self, plotId):
         print("%angular")
-        print("""<div id="%s"></div>""" % plotId)
-        self.session.call("vgplot", {"plotId":plotId, "vlSpec":vlSpec})
+        print("""
+        <div id="__vgplot_%s_title__"></div>
+        <div id="__vgplot_%s__"></div>
+        """ % (plotId, plotId))
+        
+    def update(self, plotId, vlSpec, title="", delay=200, height=None):
+        if height is None:
+            height = -1
+        else:
+            height = height + 100
+        self.session.call("vgplot", {"plotId":plotId, "vlSpec":vlSpec, "delay":delay, "height":height, "title":title})
  
     def dfToJson(self, df, columns):
         return [dict([(col, row[1][col]) for col in columns])  for row in list(df.iterrows())]
@@ -170,7 +194,8 @@ barChart = {
     "y": {"field": "b", "type": "quantitative"}
   }
 }
-vg.plot("b1", barChart)
+
+vg.plot("b1", barChart, title="Histogramm")
 ```
 
 
@@ -198,21 +223,21 @@ wget  https://raw.github.com/pydata/pandas/master/pandas/tests/data/iris.csv
 _Result:_
 
 ```
---2017-03-05 08:29:42--  https://raw.github.com/pydata/pandas/master/pandas/tests/data/iris.csv
+--2017-03-05 19:45:01--  https://raw.github.com/pydata/pandas/master/pandas/tests/data/iris.csv
 Resolving raw.github.com... 151.101.112.133
 Connecting to raw.github.com|151.101.112.133|:443... connected.
 HTTP request sent, awaiting response... 301 Moved Permanently
 Location: https://raw.githubusercontent.com/pydata/pandas/master/pandas/tests/data/iris.csv [following]
---2017-03-05 08:29:42--  https://raw.githubusercontent.com/pydata/pandas/master/pandas/tests/data/iris.csv
+--2017-03-05 19:45:02--  https://raw.githubusercontent.com/pydata/pandas/master/pandas/tests/data/iris.csv
 Resolving raw.githubusercontent.com... 151.101.112.133
 Connecting to raw.githubusercontent.com|151.101.112.133|:443... connected.
 HTTP request sent, awaiting response... 200 OK
 Length: 4600 (4.5K) [text/plain]
-Saving to: ‘iris.csv’
+Saving to: ‘iris.csv.1’
 
-     0K ....                                                  100% 6.33M=0.001s
+     0K ....                                                  100% 29.4M=0s
 
-2017-03-05 08:29:42 (6.33 MB/s) - ‘iris.csv’ saved [4600/4600]
+2017-03-05 19:45:02 (29.4 MB/s) - ‘iris.csv.1’ saved [4600/4600]
 
 
 ```
@@ -249,15 +274,16 @@ _Input:_
 
 ```python
 %pyspark
+#!zeppelin2md:iris-scatter.png
 
 columns = ['SepalLength', 'SepalWidth', 'PetalLength', 'PetalWidth']
-names = ['Iris-setosa', 'Iris-versicolor', 'Iris-virginica']
+species = ['Iris-setosa', 'Iris-versicolor', 'Iris-virginica']
 
-def irisScatter(name, col1, col2):
+def irisScatterSpec(name, col1, col2, height=200, width=200):
     data = vg.dfToJson(iris[iris["Name"] == name], [col1, col2])
     vlSpec = {
-        "width": 400,
-        "height": 400,
+        "width": width,
+        "height": height,
         "data": {"values":data},
         "mark": "point",
         "encoding": {
@@ -265,20 +291,9 @@ def irisScatter(name, col1, col2):
             "y": {"field": col2, "type": "quantitative"  }
         }
     }
-    vg.plot("iris-scatter", vlSpec)
-```
+    return vlSpec
 
-
----
-
-
-_Input:_
-
-```python
-%pyspark
-#!zeppelin2md:iris-scatter.png
-
-irisScatter("Iris-setosa", "SepalLength", "SepalWidth")
+vg.prepare("iris-scatter")
 ```
 
 
@@ -288,13 +303,18 @@ _Result:_
 
 ---
 
-#### Overwrite the above plot
 
 _Input:_
 
 ```python
 %pyspark
-irisScatter("Iris-versicolor", "SepalLength", "SepalWidth")
+
+import time
+
+for s in species:
+    vlSpec = irisScatterSpec(s, "SepalLength", "SepalWidth", 300, 300)
+    vg.update("iris-scatter", vlSpec, title=s, delay=0, height=300)
+    time.sleep(2)
 ```
 
 

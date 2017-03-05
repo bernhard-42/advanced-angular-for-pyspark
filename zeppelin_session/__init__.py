@@ -59,7 +59,7 @@ INIT_TMPL = """
                     if (typeof($scope.__functions[data.function]) === "function") {
                         $scope.__functions[data.function]($scope, data.object);
                     } else {
-                        alert("Unknown function: " + data.function + "()")
+                        console.error("Unknown function: " + data.function + "()")
                     }
                     
                 } else if (newValue.task === "register") {
