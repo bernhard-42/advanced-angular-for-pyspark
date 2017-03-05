@@ -1,10 +1,10 @@
 >**Note:**
 >This Readme has been automatically created by [zepppelin2md.py](https://github.com/bernhard-42/zeppelin2md).
 
->Alternatively, to open the Zeppelin Notebook with [Zeppelin Viewer](https://www.zeppelinhub.com/viewer) use the URL 
->    `https://raw.githubusercontent.com/bernhard-42/advanced-angular-for-pyspark/master/VegaLite%20-%20The%20python%20way.json`
+>Alternatively, load into your Zeppelin instance using the URL 
+>    `https://raw.githubusercontent.com/bernhard-42/advanced-angular-for-pyspark/master/notebooks/VegaLite%20-%20The%20python%20way.json`
 
-# VegaLite - The python way.json
+# notebooks/VegaLite - The python way.json
 
 ---
 
