@@ -90,10 +90,9 @@ class VegaLite:
                 if (object.height > 0) {
                     document.getElementById(divId).setAttribute("style","height:" + object.height + "px");
                 }
+                document.getElementById(titleDivId).innerHTML = "<span style='font-size: 60%; color: #aaa'>plotId = " + object.plotId + "</span>";
                 if (object.title != "") {
-                    console.log("==>", object.title)
-                    console.log(document.getElementById(titleDivId))
-                    document.getElementById(titleDivId).innerHTML = "<h3>" + object.title + "</h3>";
+                    document.getElementById(titleDivId).innerHTML += "<h4>" + object.title + "</h4>";
                 }
                 vg.embed("#" + divId, embedSpec, function(error, result) {
                     console.log("Plot " + object.plotId + " finished")
@@ -376,7 +375,7 @@ vlSpec = {
     "y": {"field": "Width",  "type": "quantitative"}
   }
 }
-vg.plot("iris-trellis", vlSpec)
+vg.plot("iris-trellis", vlSpec, title="Iris Overview")
 ```
 
 
