@@ -154,7 +154,7 @@ class ZeppelinSession:
     # start: starts the communication system relying on the existence of the div (hence seaprate Zeppelin paragraph)
     #
 
-    def init(self):
+    def init(self, _tag="%angular"):
         self.logger.debug("Initializing ZeppelinSession")
         sessionCommDivId, sessionCommVar, sessionStatusVar = self._sessionVars(all=True)
         self.logger.debug("Reset $scope.%s" % sessionCommVar)
@@ -162,19 +162,26 @@ class ZeppelinSession:
         self.zeppelinContext.angularUnbind(sessionStatusVar)
 
         # div must exist before javascript below can be printed
-        print("%angular")
+        print(_tag)
         if self.jsScript:
+            self.logger.info("loading extra script from client of ZeppelinASession")
+            self.logger.debug(self.jsScript)
             print("""<script>{{%s}}</script>\n""" % self.jsScript)
-        print("""<div id="%s">{{%s}}</div>\n""" % (sessionCommDivId, sessionStatusVar))
-        self.zeppelinContext.angularBind(sessionStatusVar, "Session initialized, can now be started in the next paragraph ...  (do not delete this paragraph)")
 
-    def start(self, notebook_comm=True):
+        self.logger.debug("Print Zeppelin Session Comm div")
+        print("""<div id="%s">{{%s}}</div>\n""" % (sessionCommDivId, sessionStatusVar))
+        self.zeppelinContext.angularBind(sessionStatusVar, "Session initialized, can now be started in the next paragraph ...  " + 
+                                                           "(do not delete this paragraph)")
+
+    def start(self, _tag="%angular"):
         self.logger.debug("Starting ZeppelinSession")
         sessionCommDivId, sessionCommVar, sessionStatusVar = self._sessionVars(all=True)
 
         self.zeppelinContext.angularBind(sessionStatusVar, "ZeppelinSession started (do not delete this paragraph)")
-        print("%angular")
-        print("""You should now see<br><span style="margin:20px"><i>ZeppelinSession started (do not delete this paragraph)</i></span></br> in the paragraph above""")
+        print(_tag)
+        print("""<div>You should now see<br>""" + 
+              """<span style="margin:20px"><i>ZeppelinSession started (do not delete this paragraph)</i></span></br>""" +
+              """in the paragraph above</div>""")
         print(_JAVASCRIPT(sessionCommVar, sessionCommDivId))
     
     #
