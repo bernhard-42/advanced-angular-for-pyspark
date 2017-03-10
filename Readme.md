@@ -1,4 +1,4 @@
-# Advanced Angular for Pyspark
+# Advanced Angular for Pyspark in Apache Zeppelin
 
 ## Overview
 
@@ -6,9 +6,6 @@ ZeppelinSession extends the Angular Backend API for Python with the capability t
 
 - Zeppelin notebook: [Advanced Angular for Pyspark.json](notebooks/Advanced Angular for Pyspark.json) (Readable version of notebook: [Advanced Angular for Pyspark.md](notebooks/Advanced Angular for Pyspark.md))
 
-A quick intro how to use the ZeppelinSession for visualisations with Vega-Lite ([https://vega.github.io/vega-lite/](https://vega.github.io/vega-lite/))
-
-- Zeppelin notebook: [VegaLite - The python way.json](notebooks/VegaLite - The python way.json) (Readable version of notebook: [VegaLite - The python way.md](notebooks/VegaLite - The python way.md))
 
 
 ## License

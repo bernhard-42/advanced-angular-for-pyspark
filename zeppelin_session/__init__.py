@@ -12,24 +12,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#  Session Messages:
+#
+#  Basic
+#  - register    register a javascript function
+#  - unregister  unregister a javascript function
+#  - call        call a registered javascript function 
+#  - dump        log $scope to Web Coinsole for debugging
+# 
+
 from uuid import uuid4
 import time
+from .logger import Logger, LogLevel
 
-INIT_TMPL = """
+
+def _JAVASCRIPT(sessionCommVar, sessionCommDivId):
+    execution_id = str(uuid4())
+    jsScript = """
 <script>
     var sessionCommVar = "%s";
     var sessionCommDivId = "%s"
-    var execution_id = "%s"                                                // Avoid double execution
-    if(window.__zeppelin_already_executed__ == null) {                     //
-        window.__zeppelin_already_executed__ = [];                         //
-    }                                                                      //
-    if(!window.__zeppelin_already_executed__.includes(execution_id)) {     // Avoid double execution
+    var execution_id = "%s";                                                 // Avoid double execution
+    if(window.__zeppelin_already_executed__ == null) {                       //
+        window.__zeppelin_already_executed__ = [];                           //
+    }                                                                        //
+    if(!window.__zeppelin_already_executed__.includes(execution_id)) {       // Avoid double execution
 
         // Get the angular scope of the session div element
-        console.log("Get scope for div id " + sessionCommDivId);
+
+        console.log("Get scope for div id" + sessionCommDivId);
         var $scope = angular.element(document.getElementById(sessionCommDivId)).scope();
 
+        // make scope easily accessible in Web Console
+
+        window.__zeppelin_comm_scope = $scope;
+
         // Remove any remaining watcher from last session
+
         if(typeof(window.__zeppelin_notebook_unwatchers__) !== "undefined") {
             console.info("ZeppelinSession: Cancel watchers");
             var unwatchers = window.__zeppelin_notebook_unwatchers__
@@ -39,34 +58,36 @@ INIT_TMPL = """
         }
         
         // Array to note all active watchers (as with their respective unwatcher function)
+
         window.__zeppelin_notebook_unwatchers__ = [];
-        
-        // make scope easily accessible in Web Console
-        window.__zeppelin_comm_scope = $scope;
+
+        // Main Handler
 
         console.info("Install Angular watcher for session comm var " + sessionCommVar);
         var unwatch = $scope.$watch(sessionCommVar, function(newValue, oldValue, scope) {
-            
-            // The global message handler
-            
             if(typeof(newValue) !== "undefined") {
-
+                // console.info(newValue);
                 if (newValue.task === "call") {
 
-                    // Format: newValue = {"id": int, task":"call", "msg":{"function":"func_name", "object":"json_string"}}
+                    // Format: newValue = {"id": int, task":"call", "msg":{"function":"func_name", "object":"json_object", "delay":ms}}
                     
                     var data = newValue.msg;
+                    console.log("Calling function " + data.function + " with delay: " + data.delay)
+
                     if (typeof($scope.__functions[data.function]) === "function") {
-                        $scope.__functions[data.function]($scope, data.object);
+                        setTimeout(function() {
+                            $scope.__functions[data.function]($scope, data.object);
+                        }, data.delay);
                     } else {
                         console.error("Unknown function: " + data.function + "()")
                     }
                     
                 } else if (newValue.task === "register") {
-                    
                     // Format: newValue = {"id": int, task":"register", "msg":{"function":"func_name", "funcBody":"function_as_string"}}
                     
                     var data = newValue.msg;
+                    console.log("Registering function " + data.function)
+                    
                     var func = eval(data.funcBody);
                     $scope.__functions[data.function] = func;
                     
@@ -75,6 +96,8 @@ INIT_TMPL = """
                     // Format: newValue = {"id": int, task":"unregister", "msg":{"function":"func_name"}}
                     
                     var data = newValue.msg;
+                    console.log("Unregistering function " + data.function)
+
                     if (typeof($scope.__functions[data.function]) === "function") {
                         delete $scope.__functions[data.function];
                     }               
@@ -85,36 +108,80 @@ INIT_TMPL = """
                     
                     console.log("sessionCommDivId: ", sessionCommDivId);
                     console.log("$scope: ", $scope);
-                    
+
                 } else {
-                    alert("Unknown task: " + JSON.stringify(newValue));
+
+                    // Jupyter.notebook.kernel.session.handleMsg(newValue);
+
+                    console.error("Unknown task: " + newValue.task)
                 }
             }
         }, true)
-        
+
         // Initialize the object that will hold the registered functions
         $scope.__functions = {};
         
         // remember unwatch function to clean up later
         window.__zeppelin_notebook_unwatchers__.push(unwatch)
-        
+
         // mark init as executed
         window.__zeppelin_already_executed__.push(execution_id);            // Avoid double execution
     } else {                                                                //
         console.info("Angular script already executed, skipped");           //
     }                                                                       // Avoid double execution
 </script>
-"""
+""" % (sessionCommVar, sessionCommDivId, execution_id)
+    return jsScript
 
 
 class ZeppelinSession:
 
-    def __init__(self, zeppelinContext, delay=0.1):
-        self.id = 0
-        self.delay = delay
-        self.zeppelinContext = zeppelinContext
+    def __init__(self, zeppelinContext, logLevel="INFO", jsScript=None):
+        LogLevel().setLogLevel(logLevel)
+        self.logger = Logger(self.__class__.__name__).get()
+        self.logger.propagate = False
+        self.logger.info("New ZeppelinSession")
 
-    def sessionVars(self, all=True):
+        self.id = 0
+        self.zeppelinContext = zeppelinContext
+        self.jsScript = jsScript
+
+
+    #
+    # Initialization methods.
+    # 
+    # init:  creates div
+    # start: starts the communication system relying on the existence of the div (hence seaprate Zeppelin paragraph)
+    #
+
+    def init(self):
+        self.logger.debug("Initializing ZeppelinSession")
+        sessionCommDivId, sessionCommVar, sessionStatusVar = self._sessionVars(all=True)
+        self.logger.debug("Reset $scope.%s" % sessionCommVar)
+        self.zeppelinContext.angularUnbind(sessionCommVar)
+        self.zeppelinContext.angularUnbind(sessionStatusVar)
+
+        # div must exist before javascript below can be printed
+        print("%angular")
+        if self.jsScript:
+            print("""<script>{{%s}}</script>\n""" % self.jsScript)
+        print("""<div id="%s">{{%s}}</div>\n""" % (sessionCommDivId, sessionStatusVar))
+        self.zeppelinContext.angularBind(sessionStatusVar, "Session initialized, can now be started in the next paragraph ...  (do not delete this paragraph)")
+
+    def start(self, notebook_comm=True):
+        self.logger.debug("Starting ZeppelinSession")
+        sessionCommDivId, sessionCommVar, sessionStatusVar = self._sessionVars(all=True)
+
+        self.zeppelinContext.angularBind(sessionStatusVar, "ZeppelinSession started (do not delete this paragraph)")
+        print("%angular")
+        print("""You should now see<br><span style="margin:20px"><i>ZeppelinSession started (do not delete this paragraph)</i></span></br> in the paragraph above""")
+        print(_JAVASCRIPT(sessionCommVar, sessionCommDivId))
+    
+    #
+    # Helper methods
+    #
+
+    def _sessionVars(self, all=True):
         noteId = self.zeppelinContext.getInterpreterContext().getNoteId()
         sessionCommVar = "__zeppelin_comm_%s_msg__" % noteId
         if all:
@@ -124,50 +191,71 @@ class ZeppelinSession:
         else:
             return sessionCommVar
 
-    def init(self, jsScript=None):
-        sessionCommDivId, sessionCommVar, sessionStatusVar = self.sessionVars(all=True)
+    def _dumpScope(self):
+        self.send("dump", {})
+        print("Open the Browser Javascript Console to examine the Angular $scope that holds the Zeppelin Session")
+
+    def _reset(self):
+        self.logger.debug("Ressetting ZeppelinSession")
+        sessionCommDivId, sessionCommVar, sessionStatusVar = self._sessionVars(all=True)
+        self.zeppelinContext.angularBind(sessionCommVar, {"task":"comm_reset", "msg":{}})
+        time.sleep(0.2)
         self.zeppelinContext.angularUnbind(sessionCommVar)
         self.zeppelinContext.angularUnbind(sessionStatusVar)
 
-        # div must exist before javascript below can be printed
-        print("%angular")
-        if jsScript:
-            print("""<script>{{%s}}</script>\n""" % jsScript)
-        print("""<div id="%s">{{%s}}</div>\n""" % (sessionCommDivId, sessionStatusVar))
-        self.zeppelinContext.angularBind(sessionStatusVar, "Session initialized, can now be started in the next paragraph ...  (do not delete this paragraph)")
+    #
+    # Basic communication and display methods
+    #
 
-    def start(self):
-        sessionCommDivId, sessionCommVar, sessionStatusVar = self.sessionVars(all=True)
-
-        self.zeppelinContext.angularBind(sessionStatusVar, "ZeppelinSession started (do not delete this paragraph)")
-        print("%angular") 
-        print(INIT_TMPL % (sessionCommVar, sessionCommDivId, str(uuid4())))
-        
     def send(self, task, msg):
-        sessionCommVar = self.sessionVars(all=False)
-        self.id += 1 # ensure every message is different
+        sessionCommVar = self._sessionVars(all=False)
+        self.logger.debug("Sending task %s to $scope.%s for message %s" % (task, sessionCommVar, msg))
+        self.id += 1
         self.zeppelinContext.angularBind(sessionCommVar, {"id": self.id, "task":task, "msg":msg})
+
+    def print(self, html, header=False):
+        if header:
+            print("%angular")
+        div_id = str(uuid4())
+        wrapper = '<div id="%s"></div>' % div_id
+        print(wrapper)
+        self.logger.debug("Delayed printing of " + wrapper)
+        self.send("publish", {"div_id":div_id, "html":html})
     
+    def printJs(self, script, header=False):
+        wrapper = '<script>' + script + '</script>'
+        self.print(wrapper, header)
+
+    #
+    # Angular Variable handling
+    #
+
+    def setVar(self, var, value):
+        self.logger.debug("Set var %s" % var)
+        self.zeppelinContext.angularBind(var, value)
+        
+    def getVar(self, var, delay=200):
+        self.logger.debug("Get var %s" % var)
+        time.sleep(delay / 1000.0)
+        return self.zeppelinContext.angular(var)
+        
+    def deleteVar(self, var):
+        self.logger.debug("Delete var %s" % var)        
+        self.zeppelinContext.angularUnbind(var)
+        
+    #
+    # Angular Functions handling
+    #
+
     def registerFunction(self, funcName, jsFunc):
+        self.logger.debug("Register function %s with: %s" % (funcName, jsFunc))        
         self.send("register", {"function": funcName, "funcBody": jsFunc})
     
     def unregisterFunction(self, funcName):
+        self.logger.debug("Unregister function %s" % funcName)
         self.send("unregister", {"function": funcName})
 
-    def call(self, funcName, object):
-        self.send("call", {"function": funcName, "object": object})
+    def call(self, funcName, object, delay=200):
+        self.logger.debug("Call function %s with delay %d" % (funcName, delay))
+        self.send("call", {"function": funcName, "object": object, "delay":delay})
         
-    def set(self, var, value):
-        self.zeppelinContext.angularBind(var, value)
-        
-    def get(self, var, delay=0.2):
-        time.sleep(delay)
-        return self.zeppelinContext.angular(var)
-        
-    def delete(self, var):
-        self.zeppelinContext.angularUnbind(var)
-        
-    def dumpScope(self):
-        self.send("dump", {})
-        
-  
