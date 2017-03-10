@@ -35,14 +35,6 @@ versionCheck()
 ```
 
 
-_Result:_
-
-```
-Python: 3.5.2 |Anaconda 4.3.0 (x86_64)| (default, Jul  2 2016, 17:52:12)  - [GCC 4.2.1 Compatible Apple LLVM 4.2 (clang-425.0.28)]
-Spark:  2.1.0
-
-```
-
 ---
 
 #### Simple Angular variable binding
@@ -154,16 +146,9 @@ _Input:_
 ```python
 %pyspark
 session.setVar("myvar", 10)
-session.getVar("myvar")
+print(session.getVar("myvar"))
 ```
 
-
-_Result:_
-
-```
-10
-
-```
 
 ---
 
@@ -209,16 +194,9 @@ _Input:_
 %pyspark
 session.call("increment", object={"inc":32})
 
-session.getVar("myvar", delay=1000) # Remember: async call above, so result might be outdated!
+print(session.getVar("myvar", delay=1000)) # Remember: async call above, so result might be outdated!
 ```
 
-
-_Result:_
-
-```
-42
-
-```
 
 ---
 
@@ -246,13 +224,6 @@ _Input:_
 session._dumpScope()
 ```
 
-
-_Result:_
-
-```
-Open the Browser Javascript Console to examine the Angular $scope that holds the Zeppelin Session
-
-```
 
 ---
 
