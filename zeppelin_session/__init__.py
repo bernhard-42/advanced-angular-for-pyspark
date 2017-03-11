@@ -145,8 +145,10 @@ def ZeppelinSession(zeppelinContext, logLevel="INFO"):
 
     class ZeppelinSession:
 
-        def __init__(self, zeppelinContext, logLevel="INFO"):
+        def __init__(self, zeppelinContext, logLevel="INFO", ZS=None):
             self.zeppelinContext = zeppelinContext
+            self.__ZS = ZS
+
             self.noteId = zeppelinContext.getInterpreterContext().getNoteId()
 
             self.logger = Logger(self.__class__.__name__).get()
@@ -189,7 +191,6 @@ def ZeppelinSession(zeppelinContext, logLevel="INFO"):
             print(_tag)
             print("""<div>You should now see<br>""" + 
                   """<span style="margin:20px"><i>ZeppelinSession started (do not delete this paragraph)</i></span></br>""" +
- 
                   """in the paragraph above</div>""")
 
             if not self.started:
@@ -218,12 +219,12 @@ def ZeppelinSession(zeppelinContext, logLevel="INFO"):
             print("Open the Browser Javascript Console to examine the Angular $scope that holds the Zeppelin Session")
 
         def _reset(self):
-            self.logger.debug("Ressetting ZeppelinSession")
+            self.logger.debug("Resetting ZeppelinSession")
             sessionCommDivId, sessionCommVar, sessionStatusVar = self._sessionVars(all=True)
-            self.zeppelinContext.angularBind(sessionCommVar, {"task":"comm_reset", "msg":{}})
             time.sleep(0.2)
             self.zeppelinContext.angularUnbind(sessionCommVar)
             self.zeppelinContext.angularUnbind(sessionStatusVar)
+            self.__ZS[self.noteId] = None
 
         #
         # Basic communication methods
@@ -257,11 +258,11 @@ def ZeppelinSession(zeppelinContext, logLevel="INFO"):
         #
 
         def registerFunction(self, funcName, jsFunc):
-            self.logger.debug("Register function %s with: %s" % (funcName, jsFunc))        
+            self.logger.info("Register function %s with: %s" % (funcName, jsFunc))        
             self.send("register", {"function": funcName, "funcBody": jsFunc})
         
         def unregisterFunction(self, funcName):
-            self.logger.debug("Unregister function %s" % funcName)
+            self.logger.info("Unregister function %s" % funcName)
             self.send("unregister", {"function": funcName})
 
         def call(self, funcName, object, delay=200):
@@ -283,7 +284,7 @@ def ZeppelinSession(zeppelinContext, logLevel="INFO"):
                                                                              else __ZEPPELIN_SESSION.get(noteId).sessionId))
 
     if __ZEPPELIN_SESSION.get(noteId) is None:
-        __ZEPPELIN_SESSION[noteId] = ZeppelinSession(zeppelinContext, logLevel)
+        __ZEPPELIN_SESSION[noteId] = ZeppelinSession(zeppelinContext, logLevel, ZS=__ZEPPELIN_SESSION)
     
     logger.debug("Notebook: %s ZeppelinSession: %s" % (noteId, __ZEPPELIN_SESSION.get(noteId).sessionId))
     
@@ -294,4 +295,4 @@ def resetZeppelinSession(zeppelinContext):
     noteId = zeppelinContext.getInterpreterContext().getNoteId()
     if __ZEPPELIN_SESSION.get(noteId) is not None:
         __ZEPPELIN_SESSION.get(noteId)._reset()
-        __ZEPPELIN_SESSION[noteId] = None 
+         
