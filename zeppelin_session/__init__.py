@@ -141,11 +141,11 @@ def _JAVASCRIPT(sessionCommVar, sessionCommDivId):
 # Zeppelin Session Factory delivers one new object per Zeppelin Notebook
 #
 
-def ZeppelinSession(zeppelinContext, logLevel="INFO"):
+def ZeppelinSession(zeppelinContext):
 
     class ZeppelinSession:
 
-        def __init__(self, zeppelinContext, logLevel="INFO", ZS=None):
+        def __init__(self, zeppelinContext, ZS=None):
             self.zeppelinContext = zeppelinContext
             self.__ZS = ZS
 
@@ -276,7 +276,6 @@ def ZeppelinSession(zeppelinContext, logLevel="INFO"):
 
     global __ZEPPELIN_SESSION
 
-    LogLevel().setLogLevel(logLevel)
     logger = Logger("ZeppelinSessionFactory").get()
 
     noteId = zeppelinContext.getInterpreterContext().getNoteId()
@@ -284,7 +283,7 @@ def ZeppelinSession(zeppelinContext, logLevel="INFO"):
                                                                              else __ZEPPELIN_SESSION.get(noteId).sessionId))
 
     if __ZEPPELIN_SESSION.get(noteId) is None:
-        __ZEPPELIN_SESSION[noteId] = ZeppelinSession(zeppelinContext, logLevel, ZS=__ZEPPELIN_SESSION)
+        __ZEPPELIN_SESSION[noteId] = ZeppelinSession(zeppelinContext, ZS=__ZEPPELIN_SESSION)
     
     logger.debug("Notebook: %s ZeppelinSession: %s" % (noteId, __ZEPPELIN_SESSION.get(noteId).sessionId))
     
