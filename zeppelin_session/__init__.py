@@ -26,6 +26,9 @@ import time
 from .logger import Logger, LogLevel
 
 
+__ZEPPELIN_SESSION = {}
+
+
 def _JAVASCRIPT(sessionCommVar, sessionCommDivId):
     execution_id = str(uuid4())
     jsScript = """
@@ -134,135 +137,161 @@ def _JAVASCRIPT(sessionCommVar, sessionCommDivId):
     return jsScript
 
 
-class ZeppelinSession:
+#
+# Zeppelin Session Factory delivers one new object per Zeppelin Notebook
+#
 
-    def __init__(self, zeppelinContext, logLevel="INFO", jsScript=None):
-        LogLevel().setLogLevel(logLevel)
-        self.logger = Logger(self.__class__.__name__).get()
-        self.logger.propagate = False
-        self.logger.info("New ZeppelinSession")
+def ZeppelinSession(zeppelinContext, logLevel="INFO"):
 
-        self.id = 0
-        self.zeppelinContext = zeppelinContext
-        self.jsScript = jsScript
+    class ZeppelinSession:
 
+        def __init__(self, zeppelinContext, logLevel="INFO"):
+            self.zeppelinContext = zeppelinContext
+            self.noteId = zeppelinContext.getInterpreterContext().getNoteId()
+
+            self.logger = Logger(self.__class__.__name__).get()
+            self.logger.propagate = False
+
+            self.sessionId = str(uuid4())
+            self.commId = 0
+
+            self.logger.info("New ZeppelinSession %s" % self.sessionId)
+
+            self.started = False
+
+
+        #
+        # Initialization methods.
+        # 
+        # init:  creates div
+        # start: starts the communication system relying on the existence of the div (hence seaprate Zeppelin paragraph)
+        #
+
+        def init(self, _tag="%angular"):
+            self.logger.info("Initializing ZeppelinSession %s" % self.sessionId)
+            sessionCommDivId, sessionCommVar, sessionStatusVar = self._sessionVars(all=True)
+            self.logger.debug("Reset $scope.%s" % sessionCommVar)
+            self.zeppelinContext.angularUnbind(sessionCommVar)
+            self.zeppelinContext.angularUnbind(sessionStatusVar)
+
+            # div must exist before javascript below can be printed
+            print(_tag)
+            self.logger.debug("Print Zeppelin Session Comm div")
+            print("""<div id="%s">{{%s}}</div>\n""" % (sessionCommDivId, sessionStatusVar))
+            self.zeppelinContext.angularBind(sessionStatusVar, "Session initialized, can now be started in the next paragraph ...  " + 
+                                                               "(do not delete this paragraph)")
+
+        def start(self, _tag="%angular"):
+            self.logger.debug("Starting %s ZeppelinSession" % self.sessionId)
+            sessionCommDivId, sessionCommVar, sessionStatusVar = self._sessionVars(all=True)
+
+            self.zeppelinContext.angularBind(sessionStatusVar, "ZeppelinSession started (do not delete this paragraph)")
+            print(_tag)
+            print("""<div>You should now see<br>""" + 
+                  """<span style="margin:20px"><i>ZeppelinSession started (do not delete this paragraph)</i></span></br>""" +
+ 
+                  """in the paragraph above</div>""")
+
+            if not self.started:
+                self.logger.debug("Loading Javascript Handler for session %s" % self.sessionId)            
+                print(_JAVASCRIPT(sessionCommVar, sessionCommDivId))
+                self.started = True
+            else:
+                self.logger.info("Javascript Handler for session %s already loaded" % self.sessionId)
+        
+        #
+        # Helper methods
+        #
+
+        def _sessionVars(self, all=True):
+            noteId = self.zeppelinContext.getInterpreterContext().getNoteId()
+            sessionCommVar = "__zeppelin_comm_%s_msg__" % noteId
+            if all:
+                sessionCommDivId = "__Zeppelin_Session_%s_Comm__" % noteId
+                sessionStatusVar = "__zeppelin_comm_%s_status__" % noteId
+                return (sessionCommDivId, sessionCommVar, sessionStatusVar)
+            else:
+                return sessionCommVar
+
+        def _dumpScope(self):
+            self.send("dump", {})
+            print("Open the Browser Javascript Console to examine the Angular $scope that holds the Zeppelin Session")
+
+        def _reset(self):
+            self.logger.debug("Ressetting ZeppelinSession")
+            sessionCommDivId, sessionCommVar, sessionStatusVar = self._sessionVars(all=True)
+            self.zeppelinContext.angularBind(sessionCommVar, {"task":"comm_reset", "msg":{}})
+            time.sleep(0.2)
+            self.zeppelinContext.angularUnbind(sessionCommVar)
+            self.zeppelinContext.angularUnbind(sessionStatusVar)
+
+        #
+        # Basic communication methods
+        #
+
+        def send(self, task, msg):
+            sessionCommVar = self._sessionVars(all=False)
+            self.logger.debug("Sending task %s to $scope.%s for message %s" % (task, sessionCommVar, msg))
+            self.commId += 1
+            self.zeppelinContext.angularBind(sessionCommVar, {"id": self.commId, "task":task, "msg":msg})
+
+        #
+        # Angular Variable handling
+        #
+
+        def setVar(self, var, value):
+            self.logger.debug("Set var %s" % var)
+            self.zeppelinContext.angularBind(var, value)
+            
+        def getVar(self, var, delay=200):
+            self.logger.debug("Get var %s" % var)
+            time.sleep(delay / 1000.0)
+            return self.zeppelinContext.angular(var)
+            
+        def deleteVar(self, var):
+            self.logger.debug("Delete var %s" % var)        
+            self.zeppelinContext.angularUnbind(var)
+            
+        #
+        # Angular Functions handling
+        #
+
+        def registerFunction(self, funcName, jsFunc):
+            self.logger.debug("Register function %s with: %s" % (funcName, jsFunc))        
+            self.send("register", {"function": funcName, "funcBody": jsFunc})
+        
+        def unregisterFunction(self, funcName):
+            self.logger.debug("Unregister function %s" % funcName)
+            self.send("unregister", {"function": funcName})
+
+        def call(self, funcName, object, delay=200):
+            self.logger.debug("Call function %s with delay %d" % (funcName, delay))
+            self.send("call", {"function": funcName, "object": object, "delay":delay})
+            
 
     #
-    # Initialization methods.
-    # 
-    # init:  creates div
-    # start: starts the communication system relying on the existence of the div (hence seaprate Zeppelin paragraph)
+    # Factory, only return one ZeppelinSession for each Zeppelin notebook
     #
 
-    def init(self, _tag="%angular"):
-        self.logger.debug("Initializing ZeppelinSession")
-        sessionCommDivId, sessionCommVar, sessionStatusVar = self._sessionVars(all=True)
-        self.logger.debug("Reset $scope.%s" % sessionCommVar)
-        self.zeppelinContext.angularUnbind(sessionCommVar)
-        self.zeppelinContext.angularUnbind(sessionStatusVar)
+    global __ZEPPELIN_SESSION
 
-        # div must exist before javascript below can be printed
-        print(_tag)
-        if self.jsScript:
-            self.logger.info("loading extra script from client of ZeppelinASession")
-            self.logger.debug(self.jsScript)
-            print("""<script>{{%s}}</script>\n""" % self.jsScript)
+    LogLevel().setLogLevel(logLevel)
+    logger = Logger("ZeppelinSessionFactory").get()
 
-        self.logger.debug("Print Zeppelin Session Comm div")
-        print("""<div id="%s">{{%s}}</div>\n""" % (sessionCommDivId, sessionStatusVar))
-        self.zeppelinContext.angularBind(sessionStatusVar, "Session initialized, can now be started in the next paragraph ...  " + 
-                                                           "(do not delete this paragraph)")
+    noteId = zeppelinContext.getInterpreterContext().getNoteId()
+    logger.debug("Requesting session for Notebook %s (%s)" % (noteId, "None" if not __ZEPPELIN_SESSION.get(noteId)
+                                                                             else __ZEPPELIN_SESSION.get(noteId).sessionId))
 
-    def start(self, _tag="%angular"):
-        self.logger.debug("Starting ZeppelinSession")
-        sessionCommDivId, sessionCommVar, sessionStatusVar = self._sessionVars(all=True)
-
-        self.zeppelinContext.angularBind(sessionStatusVar, "ZeppelinSession started (do not delete this paragraph)")
-        print(_tag)
-        print("""<div>You should now see<br>""" + 
-              """<span style="margin:20px"><i>ZeppelinSession started (do not delete this paragraph)</i></span></br>""" +
-              """in the paragraph above</div>""")
-        print(_JAVASCRIPT(sessionCommVar, sessionCommDivId))
+    if __ZEPPELIN_SESSION.get(noteId) is None:
+        __ZEPPELIN_SESSION[noteId] = ZeppelinSession(zeppelinContext, logLevel)
     
-    #
-    # Helper methods
-    #
-
-    def _sessionVars(self, all=True):
-        noteId = self.zeppelinContext.getInterpreterContext().getNoteId()
-        sessionCommVar = "__zeppelin_comm_%s_msg__" % noteId
-        if all:
-            sessionCommDivId = "__Zeppelin_Session_%s_Comm__" % noteId
-            sessionStatusVar = "__zeppelin_comm_%s_status__" % noteId
-            return (sessionCommDivId, sessionCommVar, sessionStatusVar)
-        else:
-            return sessionCommVar
-
-    def _dumpScope(self):
-        self.send("dump", {})
-        print("Open the Browser Javascript Console to examine the Angular $scope that holds the Zeppelin Session")
-
-    def _reset(self):
-        self.logger.debug("Ressetting ZeppelinSession")
-        sessionCommDivId, sessionCommVar, sessionStatusVar = self._sessionVars(all=True)
-        self.zeppelinContext.angularBind(sessionCommVar, {"task":"comm_reset", "msg":{}})
-        time.sleep(0.2)
-        self.zeppelinContext.angularUnbind(sessionCommVar)
-        self.zeppelinContext.angularUnbind(sessionStatusVar)
-
-    #
-    # Basic communication and display methods
-    #
-
-    def send(self, task, msg):
-        sessionCommVar = self._sessionVars(all=False)
-        self.logger.debug("Sending task %s to $scope.%s for message %s" % (task, sessionCommVar, msg))
-        self.id += 1
-        self.zeppelinContext.angularBind(sessionCommVar, {"id": self.id, "task":task, "msg":msg})
-
-    def print(self, html, header=False):
-        if header:
-            print("%angular")
-        div_id = str(uuid4())
-        wrapper = '<div id="%s"></div>' % div_id
-        print(wrapper)
-        self.logger.debug("Delayed printing of " + wrapper)
-        self.send("publish", {"div_id":div_id, "html":html})
+    logger.debug("Notebook: %s ZeppelinSession: %s" % (noteId, __ZEPPELIN_SESSION.get(noteId).sessionId))
     
-    def printJs(self, script, header=False):
-        wrapper = '<script>' + script + '</script>'
-        self.print(wrapper, header)
+    return __ZEPPELIN_SESSION[noteId]
 
-    #
-    # Angular Variable handling
-    #
 
-    def setVar(self, var, value):
-        self.logger.debug("Set var %s" % var)
-        self.zeppelinContext.angularBind(var, value)
-        
-    def getVar(self, var, delay=200):
-        self.logger.debug("Get var %s" % var)
-        time.sleep(delay / 1000.0)
-        return self.zeppelinContext.angular(var)
-        
-    def deleteVar(self, var):
-        self.logger.debug("Delete var %s" % var)        
-        self.zeppelinContext.angularUnbind(var)
-        
-    #
-    # Angular Functions handling
-    #
-
-    def registerFunction(self, funcName, jsFunc):
-        self.logger.debug("Register function %s with: %s" % (funcName, jsFunc))        
-        self.send("register", {"function": funcName, "funcBody": jsFunc})
-    
-    def unregisterFunction(self, funcName):
-        self.logger.debug("Unregister function %s" % funcName)
-        self.send("unregister", {"function": funcName})
-
-    def call(self, funcName, object, delay=200):
-        self.logger.debug("Call function %s with delay %d" % (funcName, delay))
-        self.send("call", {"function": funcName, "object": object, "delay":delay})
-        
+def resetZeppelinSession(zeppelinContext):
+    noteId = zeppelinContext.getInterpreterContext().getNoteId()
+    if __ZEPPELIN_SESSION.get(noteId) is not None:
+        __ZEPPELIN_SESSION.get(noteId)._reset()
+        __ZEPPELIN_SESSION[noteId] = None 
