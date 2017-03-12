@@ -27,7 +27,7 @@ from .logger import Logger, LogLevel
 
 
 __ZEPPELIN_SESSION = {}
-
+__ZEPPELIN_CONTEXT = None
 
 def _JAVASCRIPT(sessionCommVar, sessionCommDivId):
     execution_id = str(uuid4())
@@ -141,7 +141,7 @@ def _JAVASCRIPT(sessionCommVar, sessionCommDivId):
 # Zeppelin Session Factory delivers one new object per Zeppelin Notebook
 #
 
-def ZeppelinSession(zeppelinContext):
+def ZeppelinSession(zeppelinContext=None):
 
     class ZeppelinSession:
 
@@ -275,23 +275,39 @@ def ZeppelinSession(zeppelinContext):
     #
 
     global __ZEPPELIN_SESSION
+    global __ZEPPELIN_CONTEXT
 
     logger = Logger("ZeppelinSessionFactory").get()
 
-    noteId = zeppelinContext.getInterpreterContext().getNoteId()
-    logger.debug("Requesting session for Notebook %s (%s)" % (noteId, "None" if not __ZEPPELIN_SESSION.get(noteId)
-                                                                             else __ZEPPELIN_SESSION.get(noteId).sessionId))
+    if zeppelinContext is None:
+        logger.debug("Using cached ZeppelinContext")
+        noteId = __ZEPPELIN_CONTEXT.getInterpreterContext().getNoteId()
+    else:
+        logger.debug("Using provided ZeppelinContext")
+        noteId = zeppelinContext.getInterpreterContext().getNoteId()
+        # save ZeppelinContext to allow later retrieval of session without parameter
+        __ZEPPELIN_CONTEXT = zeppelinContext
 
+    logger.info("Requesting session for Notebook %s (%s)" % (noteId, "None" if not __ZEPPELIN_SESSION.get(noteId)
+                                                                            else __ZEPPELIN_SESSION.get(noteId).sessionId))
     if __ZEPPELIN_SESSION.get(noteId) is None:
-        __ZEPPELIN_SESSION[noteId] = ZeppelinSession(zeppelinContext, ZS=__ZEPPELIN_SESSION)
+        logger.debug("A new ZeppelinSession will be created for noteId %s" % noteId)
+        __ZEPPELIN_SESSION[noteId] = ZeppelinSession(__ZEPPELIN_CONTEXT, ZS=__ZEPPELIN_SESSION)
+         
+         # Force ZeppelinSession.init()
+        __ZEPPELIN_SESSION[noteId].init()
+    else:
+        logger.debug("Return existing ZeppelinSession")   
     
-    logger.debug("Notebook: %s ZeppelinSession: %s" % (noteId, __ZEPPELIN_SESSION.get(noteId).sessionId))
+    logger.info("Notebook: %s ZeppelinSession: %s" % (noteId, __ZEPPELIN_SESSION.get(noteId).sessionId))
     
     return __ZEPPELIN_SESSION[noteId]
 
 
 def resetZeppelinSession(zeppelinContext):
-    noteId = zeppelinContext.getInterpreterContext().getNoteId()
+    global __ZEPPELIN_CONTEXT
+
+    noteId = __ZEPPELIN_CONTEXT.getInterpreterContext().getNoteId()
     if __ZEPPELIN_SESSION.get(noteId) is not None:
         __ZEPPELIN_SESSION.get(noteId)._reset()
          
