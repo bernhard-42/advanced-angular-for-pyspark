@@ -41,9 +41,20 @@ def _JAVASCRIPT(sessionCommVar, sessionCommDivId):
     }                                                                        //
     if(!window.__zeppelin_already_executed__.includes(execution_id)) {       // Avoid double execution
 
+        var Logger = function(name) {
+            this.name = name;
+        }
+        Logger.prototype.info = function(msg) {
+            console.info(this.name + " [INFO] " + msg)
+        }
+        Logger.prototype.debug = function(msg) {
+            console.log(this.name + " [DEBUG] " + msg)
+        }
+        var logger = new Logger("ZeppelinSession");
+
         // Get the angular scope of the session div element
 
-        console.log("Get scope for div id" + sessionCommDivId);
+        logger.debug("Get scope for div id" + sessionCommDivId);
         var $scope = angular.element(document.getElementById(sessionCommDivId)).scope();
 
         // make scope easily accessible in Web Console
@@ -53,7 +64,7 @@ def _JAVASCRIPT(sessionCommVar, sessionCommDivId):
         // Remove any remaining watcher from last session
 
         if(typeof(window.__zeppelin_notebook_unwatchers__) !== "undefined") {
-            console.info("ZeppelinSession: Cancel watchers");
+            logger.info("ZeppelinSession: Cancel watchers");
             var unwatchers = window.__zeppelin_notebook_unwatchers__
             for(i in unwatchers) {
                 unwatchers[i]();
@@ -66,16 +77,16 @@ def _JAVASCRIPT(sessionCommVar, sessionCommDivId):
 
         // Main Handler
 
-        console.info("Install Angular watcher for session comm var " + sessionCommVar);
+        logger.info("Install Angular watcher for session comm var " + sessionCommVar);
         var unwatch = $scope.$watch(sessionCommVar, function(newValue, oldValue, scope) {
             if(typeof(newValue) !== "undefined") {
-                // console.info(newValue);
+                // logger.info(newValue);
                 if (newValue.task === "call") {
 
                     // Format: newValue = {"id": int, task":"call", "msg":{"function":"func_name", "object":"json_object", "delay":ms}}
                     
                     var data = newValue.msg;
-                    console.log("Calling function " + data.function + " with delay: " + data.delay)
+                    logger.debug("Calling function " + data.function + " with delay: " + data.delay)
 
                     if (typeof($scope.__functions[data.function]) === "function") {
                         setTimeout(function() {
@@ -89,7 +100,7 @@ def _JAVASCRIPT(sessionCommVar, sessionCommDivId):
                     // Format: newValue = {"id": int, task":"register", "msg":{"function":"func_name", "funcBody":"function_as_string"}}
                     
                     var data = newValue.msg;
-                    console.log("Registering function " + data.function)
+                    logger.debug("Registering function " + data.function)
                     
                     var func = eval(data.funcBody);
                     $scope.__functions[data.function] = func;
@@ -99,7 +110,7 @@ def _JAVASCRIPT(sessionCommVar, sessionCommDivId):
                     // Format: newValue = {"id": int, task":"unregister", "msg":{"function":"func_name"}}
                     
                     var data = newValue.msg;
-                    console.log("Unregistering function " + data.function)
+                    logger.debug("Unregistering function " + data.function)
 
                     if (typeof($scope.__functions[data.function]) === "function") {
                         delete $scope.__functions[data.function];
@@ -109,8 +120,8 @@ def _JAVASCRIPT(sessionCommVar, sessionCommDivId):
                     
                     // Format: newValue = {"id": int, task":"dump", "msg":{}}
                     
-                    console.log("sessionCommDivId: ", sessionCommDivId);
-                    console.log("$scope: ", $scope);
+                    logger.debug("sessionCommDivId: ", sessionCommDivId);
+                    logger.debug("$scope: ", $scope);
 
                 } else {
 
@@ -130,7 +141,7 @@ def _JAVASCRIPT(sessionCommVar, sessionCommDivId):
         // mark init as executed
         window.__zeppelin_already_executed__.push(execution_id);            // Avoid double execution
     } else {                                                                //
-        console.info("Angular script already executed, skipped");           //
+        logger.info("Angular script already executed, skipped");           //
     }                                                                       // Avoid double execution
 </script>
 """ % (sessionCommVar, sessionCommDivId, execution_id)
