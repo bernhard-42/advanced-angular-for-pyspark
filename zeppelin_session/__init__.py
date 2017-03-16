@@ -307,7 +307,11 @@ def ZeppelinSession(zeppelinContext=None):
 def resetZeppelinSession(zeppelinContext):
     global __ZEPPELIN_CONTEXT
 
-    noteId = __ZEPPELIN_CONTEXT.getInterpreterContext().getNoteId()
-    if __ZEPPELIN_SESSION.get(noteId) is not None:
-        __ZEPPELIN_SESSION.get(noteId)._reset()
-         
+    try:
+        noteId = __ZEPPELIN_CONTEXT.getInterpreterContext().getNoteId()
+        print("Resetting ZeppelinSession")
+        if __ZEPPELIN_SESSION.get(noteId) is not None:
+            __ZEPPELIN_SESSION.get(noteId)._reset()
+    except AttributeError:
+        pass
+
