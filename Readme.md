@@ -4,7 +4,7 @@
 
 ZeppelinSession extends the Angular Backend API for Python with the capability to start javascript functions and pass objects to them from Python.
 
-A quick overview can be found in the Zeppelin notebook: [Advanced Angular for Pyspark.json](notebooks/Advanced Angular for Pyspark.json). A readable version of notebook cqan be found under [Advanced Angular for Pyspark.md](notebooks/Advanced Angular for Pyspark.md).
+A quick overview can be found in the Zeppelin notebook: [Advanced Angular for Pyspark.json](notebooks/Advanced%20Angular%20for%20Pyspark.json). A readable version of notebook can be found under [Advanced Angular for Pyspark.md](notebooks/Advanced Angular%20for%20Pyspark.md).
 
 **Note:**
 The Session Layer consists of a Python and a Javascript. 
