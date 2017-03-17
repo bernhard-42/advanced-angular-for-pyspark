@@ -41,14 +41,19 @@ def _JAVASCRIPT(sessionCommVar, sessionCommDivId):
     }                                                                        //
     if(!window.__zeppelin_already_executed__.includes(execution_id)) {       // Avoid double execution
 
+        window.__zeppelin_session_debug = 0; // no debug output
         var Logger = function(name) {
             this.name = name;
         }
         Logger.prototype.info = function(msg) {
-            console.info(this.name + " [INFO] " + msg)
+            if (window.__zeppelin_session_debug > 0) {
+                console.info(this.name + " [INFO] " + msg)
+            }
         }
         Logger.prototype.debug = function(msg) {
-            console.log(this.name + " [DEBUG] " + msg)
+            if (window.__zeppelin_session_debug > 1) {
+                console.log(this.name + " [DEBUG] " + msg)
+            }
         }
         var logger = new Logger("ZeppelinSession");
 
