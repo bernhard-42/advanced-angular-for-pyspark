@@ -4,10 +4,7 @@
 
 ZeppelinSession extends the Angular Backend API for Python with the capability to start javascript functions and pass objects to them from Python.
 
-A quick overview can be found in:
-
-- Zeppelin notebook: [Advanced Angular for Pyspark.json](notebooks/Advanced Angular for Pyspark.json) 
-- Readable version of notebook: [Advanced Angular for Pyspark.md](notebooks/Advanced Angular for Pyspark.md)
+A quick overview can be found in the Zeppelin notebook: [Advanced Angular for Pyspark.json](notebooks/Advanced Angular for Pyspark.json). A readable version of notebook cqan be found under [Advanced Angular for Pyspark.md](notebooks/Advanced Angular for Pyspark.md).
 
 **Note:**
 The Session Layer consists of a Python and a Javascript. 
@@ -27,7 +24,7 @@ To turn on logging for Javascript, go to the Browser web console and set
 ```javascript
 __zeppelin_session_debug=0 // no logging
 __zeppelin_session_debug=1 // info logging
-__zeppelin_session_debug=0 // debug logging
+__zeppelin_session_debug=2 // debug logging
 ```
 
 
