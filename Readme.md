@@ -10,8 +10,9 @@ A quick overview can be found in:
 - the readable version of notebook [Advanced Angular for Pyspark.md](notebooks/Advanced%20Angular%20for%20Pyspark.md).
 
 
-**Note:**
-The Session Layer consists of a Python and a Javascript. 
+**Note:** Logging:
+
+The Session Layer consists of a Python and a Javascript part. 
 
 To turn on logging in Python, call 
 
@@ -22,6 +23,8 @@ LogLevel().setLogLevel("DEBUG")
 
 zs = ZeppelinSession(z.z)
 ```
+
+The log file can be found in $ZEPPELIN_LOG_DIR/zeppelin-interpreter-pyspark-comm-layer-${USER}-${HOSTNAME}.*.log
 
 To turn on logging for Javascript, go to the Browser web console and set
 
