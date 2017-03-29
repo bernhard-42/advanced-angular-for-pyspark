@@ -106,8 +106,8 @@ def _JAVASCRIPT(sessionCommVar, sessionCommDivId):
                     
                     var data = newValue.msg;
                     logger.debug("Registering function " + data.function)
-                    
-                    var func = eval(data.funcBody);
+
+                    var func = eval(data.funcName + "=" + data.funcBody);
                     $scope.__functions[data.function] = func;
                     
                 } else if (newValue.task === "unregister") {

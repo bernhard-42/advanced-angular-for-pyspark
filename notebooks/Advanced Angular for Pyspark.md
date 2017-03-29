@@ -117,10 +117,10 @@ _Input:_
 ```python
 %pyspark
 
-from zeppelin_session import ZeppelinSession # , resetZeppelinSession
+from zeppelin_session import ZeppelinSession, resetZeppelinSession
 
+resetZeppelinSession(z.z)
 session = ZeppelinSession(z.z)
-session.init()
 ```
 
 
